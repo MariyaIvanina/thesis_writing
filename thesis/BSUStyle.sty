@@ -3,7 +3,7 @@
 \RequirePackage[russian]{babel}
 \RequirePackage{indentfirst}
 \RequirePackage{graphicx}
-\RequirePackage{amsmath,amsfonts,amssymb}
+\RequirePackage{amsmath,amsfonts,amssymb,bbm}
 \RequirePackage{cite}
 
 
@@ -39,8 +39,8 @@
 \newtheorem{example}{Пример}[chapter]
 \newtheorem{definition}{Определение}[chapter]
 
-\newcommand{\proof}{\par\mbox{Доказательство.}\hspace{2mm}}
-\newcommand{\proofnp}{\par\mbox{Доказательство}\hspace{2mm}}
+\newcommand{\proof}{\small \mbox{Д о к а з а т е л ь с т в о \ }}
+\newcommand{\proofend}{\hfill $\square$ \vspace{3mm} \normalsize}
 
 \def\@begintheorem#1#2{\trivlist \item[\hskip \labelsep {\hspace*{\parindent} \bf #1\ #2}]}
 
@@ -112,11 +112,25 @@
 %  МАТЕМАТИЧЕСКИЕ
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
 \newcommand{\rank}{\mathop{\rm rank}\nolimits}
 \newcommand{\diag}{\mathop{\rm diag}\nolimits}
 \newcommand{\dett}{\mathop{\rm det}\nolimits}
 \newcommand{\intt}{\mathop{\rm int}\nolimits}
 \newcommand{\sign}{\mathop{\rm sign}\nolimits}
+\newcommand{\extr}{\mathop{\rm extr}\nolimits}
+\newcommand{\aff}{\mathop{\rm aff}\nolimits}
+\newcommand{\conv}{\mathop{\rm conv}\nolimits}
+\newcommand{\tr}{\mathop{\rm tr}\nolimits}
+\newcommand{\dom}{\mathop{\rm dom}\nolimits}
+\newcommand{\epi}{\mathop{\rm epi}\nolimits}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Sd}{\mathbb{S}_+}
+\newcommand{\Pd}{\mathbb{S}_{++}}
+\newcommand{\st}{\mathop{\textrm{ subject to} \ \ }}
+%\newcommand{\st}{\textrm{при} \ \ }
+\newcommand{\wave}{\qquad \rightsquigarrow \qquad }
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %  ТИТУЛЬНЫЙ ЛИСТ
@@ -135,7 +149,7 @@
         \textbf{\hspace{-3mm}МИНИСТЕРСТВО ОБРАЗОВАНИЯ РЕСПУБЛИКИ БЕЛАРУСЬ \\
         БЕЛОРУССКИЙ ГОСУДАРСТВЕННЫЙ УНИВЕРСИТЕТ\\
         ФАКУЛЬТЕТ ПРИКЛАДНОЙ МАТЕМАТИКИ И ИНФОРМАТИКИ \\
-        Кафедра дискретной математики и алгоритмики} \\
+        Кафедра методов оптимального управления} \\
 
         \vfill
 
@@ -153,29 +167,20 @@
 \vfill
 
 
-%
-{\hspace*{8cm}\begin{minipage}[t]{0.7\textwidth}
-%Научный руководитель \\ \@supervisor
-магистранта 2 года обучения \\
-Павловец Марии Евгеньевны \\
-\\
-Научный руководитель \\
-Дмитрук Н.М. \\
-канд. физ.-мат. наук, доцент \\
-\\
-%Руководитель практики от организации \\
-%Корзун А.В.
+
+{\hspace*{8cm}\begin{minipage}[t]{0.5\textwidth}
+Научный руководитель \\ \@supervisor
 \end{minipage}}
+
 
 \vspace {1 cm}
 
-%\noindent\begin{minipage}[t]{0.7\textwidth}
-%Допущена к защите \\ \vskip 0.1em
-%<<\rule{1 cm}{0,2 pt}>> \rule{4 cm}{0,2 pt} {\the\year \ г.}  \\
-%Зав. кафедрой методов оптимального управления \\
-%канд. физ.-мат. наук, доцент Н.М. Дмитрук
-%\end{minipage}
-
+\noindent\begin{minipage}[t]{0.7\textwidth}
+Допущена к защите \\ \vskip 0.1em
+<<\rule{1 cm}{0,2 pt}>> \rule{4 cm}{0,2 pt} {\the\year \ г.}  \\
+Зав. кафедрой методов оптимального управления \\
+канд. физ.-мат. наук, доцент Н.М. Дмитрук
+\end{minipage}
 \vfill
 
 \centerline{Минск \the\year}
