@@ -27,7 +27,7 @@ x_eq = zeros(n,1);
 u_eq = zeros(m,1);
 
 % Horizon (continuous)
-T = 1.0;
+T = 3.0;
 
 % sampling time (Discretization steps)
 delta = 0.1;
@@ -37,7 +37,7 @@ N = T/delta;
 
 % initial conditions
 t_0 = 0.0;
-x_init = [-0.7; -0.8];
+x_init = [-0.4; 1.5];
 
 % stage cost
 Q = 0.1*eye(n);
@@ -59,18 +59,18 @@ fprintf('---------------------------------------------------\n');
 % initilization of measured values
 tmeasure = t_0;
 xmeasure = x_init;
-lb=[repmat([-2 -1], 1, N+1), -inf*ones(1,m*N)];
-ub=[repmat([0.5 2], 1, N+1), inf*ones(1,m*N)];
+lb=[repmat([-2 -1], 1, N+1), -2*ones(1,m*N)];
+ub=[repmat([0.5 2], 1, N+1), 2*ones(1,m*N)];
 
 %get train data
 [X_train, U_train] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.1);
-[X_train_half, U_train_half] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.05);
+%[X_train_half, U_train_half] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.05);
 [X_train_zero, U_train_zero] = get_train_data_near_zero(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub);
 %uncomment to see the vectors plot with initial state and its next state by
 %calcualted U control law
 %X_train = [X_train; X_train_zero];
 %U_train = [U_train U_train_zero];
-draw_trained_data_plot(X_train, U_train, delta);
+%draw_trained_data_plot(X_train, U_train, delta);
 %draw_trained_data_plot(X_train_zero, U_train_zero, delta);
 
 % create network 
@@ -80,10 +80,11 @@ mpciterations = 200;
 % Set variables for output
 
 x_OL = x_init;
+%simulate_mpc_simple(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations);
 
 while abs(x_OL(1)) > 0.001 || abs(x_OL(2)) > 0.001
     x_OL = x_init;
-    net = train_nn_regulator(X_train, U_train,n, false,'net_example_6.mat');
+    net = train_nn_regulator(X_train, U_train,n, true,'net_example_6.mat');
     
     x_OL = simulate_mpc(mpciterations, net, x_OL, tmeasure, xmeasure, delta, false);
     
@@ -91,7 +92,7 @@ end
 
 x_OL = simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
 
-svm_cl = get_svm_classifier(X_train, U_train, delta);
+svm_cl = get_svm_classifier(X_train, U_train, delta, 2,-2.0);
 
 [predicted_labels, scores] = predict(svm_cl, X_train);
 
@@ -101,12 +102,55 @@ net_feas = [];
 x_OL = x_init;
 while abs(x_OL(1)) > 0.001 || abs(x_OL(2)) > 0.001
     x_OL = x_init;
-    net_feas = train_nn_regulator(new_X_train, new_U_train,n, false, 'net_feas_model_with_zero.mat');
+    net_feas = train_nn_regulator(new_X_train, new_U_train,n, true, 'net_feas_model_with_zero.mat');
     
     x_OL = simulate_mpc(mpciterations, net_feas, x_OL, tmeasure, xmeasure, delta, false);
     
 end
 x_OL = simulate_mpc(mpciterations, net_feas, x_init, tmeasure, xmeasure, delta, true);
+
+end
+
+function [] = simulate_mpc_simple(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations)
+    t = [];
+    x = [];
+    u = [];
+    figure;
+    x_OL = x_init
+    
+    for ii = 1:mpciterations % maximal number of iterations
+        
+        t_Start = tic;
+        u_OL=get_control_law(x_OL, A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub);
+        t_Elapsed = toc( t_Start );
+        %%    
+
+        % Store closed loop data
+        t = [ t, tmeasure ];
+        x = [ x, x_OL ];
+        u = [ u, u_OL];
+
+        % Update closed-loop system (apply first control move to system)
+        x_OL = dynamic(delta, x_OL, u_OL);
+        tmeasure = tmeasure + delta;
+        
+        % Print numbers
+        fprintf(' %3d  | %+11.6f %+11.6f %+11.6f  %+6.3f\n', ii, u(end),...
+                     x(1,end), x(2,end),t_Elapsed);
+
+        %plot predicted and closed-loop state trajetories
+
+        plot(x(1,:),x(2,:),'r'), grid on, hold on,
+        %plot(x_OL(1:n:n*(N+1)),x_OL(n:n:n*(N+1)),'g') 
+        %plot(x(1,:),x(2,:),'ob')
+        xlabel('x(1)')
+        ylabel('x(2)')
+        drawnow
+
+    end
+    x_OL
+    figure;
+    stairs(t,u);
 end
 
 function [x_OL] = simulate_mpc(mpciterations, net, x_OL, tmeasure, ~, delta, draw_plot)
@@ -119,7 +163,6 @@ function [x_OL] = simulate_mpc(mpciterations, net, x_OL, tmeasure, ~, delta, dra
     for ii = 1:mpciterations % maximal number of iterations
         
         t_Start = tic;
-
         u_OL=net(x_OL);
         t_Elapsed = toc( t_Start );
         %%    
@@ -167,16 +210,33 @@ function [new_X_train, new_U_train] = filter_feasible_points(X_train, U_train, p
     end
 end
 
-function [svm_cl] = get_svm_classifier(X_train, U_train, delta)
-    use_saved_data = false;
-    if use_saved_data
-        load svm_labels
-    else
-        labels = get_labels_for_states(X_train, U_train, delta);
-    end
-    
+function [svm_cl] = get_svm_classifier(X_train, U_train, delta, mode, u_eq)
     data1 = [];
     data2 = [];
+    labels = [];
+    
+    use_saved_data = false;
+    if use_saved_data
+       load svm_labels
+    else
+       labels = get_labels_for_states(X_train, U_train, delta);
+    end
+    new_labels = [];
+    if mode == 2
+        use_saved_data = false;
+        if use_saved_data
+            load svm_labels
+        else
+            for i= 1:size(U_train,2)
+                res = -1;
+                if U_train(i) <= u_eq + 0.0001 && labels(i) == 1
+                    res = 1;
+                end
+                new_labels = [new_labels; res]; 
+            end
+        end
+    end
+    labels = new_labels;
     for i=1:size(U_train,2)
         if labels(i) == -1
             data1 = [data1;X_train(i,:)];
@@ -190,6 +250,7 @@ function [svm_cl] = get_svm_classifier(X_train, U_train, delta)
     hold on
     plot(data2(:,1),data2(:,2),'b.','MarkerSize',15)
     axis equal
+    legend({'-1','+1'});
     hold off
 
     %Train the SVM Classifier
@@ -209,7 +270,7 @@ function [svm_cl] = get_svm_classifier(X_train, U_train, delta)
     hold on
     h(3) = plot(X_train(svm_cl.IsSupportVector,1),X_train(svm_cl.IsSupportVector,2),'ko');
     contour(x1Grid,x2Grid,reshape(scores(:,2),size(x1Grid)),[0 0],'k');
-    legend(h,{'-1','+1','Support Vectors'});
+    legend(h,{'-1','+1','Опорные вектора'});
     axis equal
     hold off
 end
@@ -217,9 +278,9 @@ end
 function [X_train, U_train] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, step)
     X_train = [];
     U_train = [];
-    use_saved_data = false;
+    use_saved_data = true;
     if use_saved_data
-        load train_data_0.1.mat
+        load train_data %train_data_0.1.mat
     else
         for x1 = -2:step:0.5
             for x2 = -1:step:2
@@ -324,9 +385,9 @@ function u_control = get_control_law(x_init, Ac, Bc, Q_cost,R_cost, P,K, N, x_eq
     
     % Solve optimization problem
     %structure: y_OL=[x_OL,u_OL];
-    [y_OL, V, exitflag, output]=fmincon(@(y) costfunction( N, y, x_eq, u_eq, Q_cost, R_cost, 7.4014*P,n,m,delta),...
+    [y_OL, V, exitflag, output]=fmincon(@(y) costfunction( N, y, x_eq, u_eq, Q_cost, R_cost, P,n,m,delta),...
         y_init,[],[],Aeq,beq,lb,ub,...
-        @(y) nonlinearconstraints(N, delta, y, x_eq, 7.4014*P, alpha,n,m), options);
+        @(y) nonlinearconstraints(N, delta, y, x_eq, P, alpha,n,m), options);
     x_OL=y_OL(1:n*(N+1));
     u_OL=y_OL(n*(N+1)+1:end);
     t_Elapsed = toc( t_Start ); 
