@@ -59,13 +59,14 @@ fprintf('---------------------------------------------------\n');
 % initilization of measured values
 tmeasure = t_0;
 xmeasure = x_init;
-lb=[repmat([-2 -1], 1, N+1), -2*ones(1,m*N)];
-ub=[repmat([0.5 2], 1, N+1), 2*ones(1,m*N)];
+lb=[repmat([-2 -1], 1, N+1), 0.99*(-1*ones(1,m*N))];
+ub=[repmat([0.5 2], 1, N+1), 0.99*1*ones(1,m*N)];
 
 %get train data
 [X_train, U_train] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.1);
-%[X_train_half, U_train_half] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.05);
-[X_train_zero, U_train_zero] = get_train_data_near_zero(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub);
+[X_train_half, U_train_half] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.05);
+%[X_train_zero, U_train_zero] = get_train_data_near_zero(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub);
+%draw_3d_plot(X_train,U_train);
 %uncomment to see the vectors plot with initial state and its next state by
 %calcualted U control law
 %X_train = [X_train; X_train_zero];
@@ -74,7 +75,7 @@ ub=[repmat([0.5 2], 1, N+1), 2*ones(1,m*N)];
 %draw_trained_data_plot(X_train_zero, U_train_zero, delta);
 
 % create network 
-net = train_nn_regulator(X_train, U_train,n, true, 'net_example_6.mat');
+%net = train_nn_regulator(X_train, U_train,n, true, 'net_example_6.mat');
 
 mpciterations = 200;
 % Set variables for output
@@ -84,15 +85,15 @@ x_OL = x_init;
 
 while abs(x_OL(1)) > 0.001 || abs(x_OL(2)) > 0.001
     x_OL = x_init;
-    net = train_nn_regulator(X_train, U_train,n, true,'net_example_6.mat');
+    net = train_nn_regulator(X_train, U_train,n, true,'net_approx_0_1.mat');
     
     x_OL = simulate_mpc(mpciterations, net, x_OL, tmeasure, xmeasure, delta, false);
     
 end
 
-x_OL = simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
+%x_OL = simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
 
-svm_cl = get_svm_classifier(X_train, U_train, delta, 2,-2.0);
+svm_cl = get_svm_classifier(X_train, U_train, delta, 2,-0.99);
 
 [predicted_labels, scores] = predict(svm_cl, X_train);
 
@@ -102,7 +103,7 @@ net_feas = [];
 x_OL = x_init;
 while abs(x_OL(1)) > 0.001 || abs(x_OL(2)) > 0.001
     x_OL = x_init;
-    net_feas = train_nn_regulator(new_X_train, new_U_train,n, true, 'net_feas_model_with_zero.mat');
+    net_feas = train_nn_regulator(new_X_train, new_U_train,n, false, 'net_feas_model_with_zero.mat');
     
     x_OL = simulate_mpc(mpciterations, net_feas, x_OL, tmeasure, xmeasure, delta, false);
     
@@ -221,22 +222,26 @@ function [svm_cl] = get_svm_classifier(X_train, U_train, delta, mode, u_eq)
     else
        labels = get_labels_for_states(X_train, U_train, delta);
     end
-    new_labels = [];
+    
     if mode == 2
+        new_labels = [];
         use_saved_data = false;
         if use_saved_data
             load svm_labels
         else
             for i= 1:size(U_train,2)
                 res = -1;
-                if U_train(i) <= u_eq + 0.0001 && labels(i) == 1
+                if (u_eq < 0 && U_train(i) <= u_eq + 0.0001 || u_eq > 0 && U_train(i) >= u_eq -0.0001) && labels(i) == 1
+                    i
+                    U_train(i)
                     res = 1;
                 end
                 new_labels = [new_labels; res]; 
             end
+            labels = new_labels;
         end
     end
-    labels = new_labels;
+    
     for i=1:size(U_train,2)
         if labels(i) == -1
             data1 = [data1;X_train(i,:)];
@@ -250,19 +255,19 @@ function [svm_cl] = get_svm_classifier(X_train, U_train, delta, mode, u_eq)
     hold on
     plot(data2(:,1),data2(:,2),'b.','MarkerSize',15)
     axis equal
-    legend({'-1','+1'});
+    legend({'Точки вне области притяжения','Точки из области притяжения'});
     hold off
 
     %Train the SVM Classifier
     svm_cl = fitcsvm(X_train,labels,'KernelFunction','rbf',...
-        'BoxConstraint',Inf,'ClassNames',[-1,1]);
+         'BoxConstraint',10000,'ClassNames',[-1,1]);
 
     % Predict scores over the grid
-    d = 0.02;
+    d = 0.05;
     [x1Grid,x2Grid] = meshgrid(min(X_train(:,1)):d:max(X_train(:,1)),...
         min(X_train(:,2)):d:max(X_train(:,2)));
     xGrid = [x1Grid(:),x2Grid(:)];
-    [~,scores] = predict(svm_cl,xGrid);
+    [predicted_labels,scores] = predict(svm_cl,xGrid);
 
     % Plot the data and the decision boundary
     figure;
@@ -270,9 +275,20 @@ function [svm_cl] = get_svm_classifier(X_train, U_train, delta, mode, u_eq)
     hold on
     h(3) = plot(X_train(svm_cl.IsSupportVector,1),X_train(svm_cl.IsSupportVector,2),'ko');
     contour(x1Grid,x2Grid,reshape(scores(:,2),size(x1Grid)),[0 0],'k');
-    legend(h,{'-1','+1','Опорные вектора'});
+    legend(h,{'Точки c управлением u(t) > -1','Точки c управлением u(t) = -1','Опорные вектора'});
     axis equal
     hold off
+end
+
+function [] = draw_3d_plot(X_train,U_train)
+    [x1_arr,x2_arr] = meshgrid(-2:0.05:0.5,-1:0.05:2);
+    
+    x3_arr = reshape(U_train, size(x1_arr,1), size(x1_arr,2));
+    figure;
+    surf(x1_arr, x2_arr, x3_arr);
+    xlabel('x(1)')
+    ylabel('x(2)')
+    zlabel('u')
 end
 
 function [X_train, U_train] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, step)
@@ -280,7 +296,13 @@ function [X_train, U_train] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, de
     U_train = [];
     use_saved_data = true;
     if use_saved_data
-        load train_data %train_data_0.1.mat
+        load new_train_data_0_05 %train_data_0.1.mat
+        if exist('X_train_half','var')
+            X_train = eval('X_train_half');
+        end
+        if exist('U_train_half','var')
+            U_train = eval('U_train_half');
+        end
     else
         for x1 = -2:step:0.5
             for x2 = -1:step:2
@@ -294,9 +316,9 @@ end
 function [X_train, U_train] = get_train_data_near_zero(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub)
     X_train = [];
     U_train = [];
-    use_saved_data = true;
+    use_saved_data = false;
     if use_saved_data
-        load train_data_near_zero.mat
+        load train_zero.mat
         if exist('X_train_zero','var')
             X_train = eval('X_train_zero');
         end
@@ -352,8 +374,12 @@ function [labels] = get_labels_for_states(X_train, U_train, delta)
     for i= 1:size(U_train,2)
         new_x = dynamic(delta, X_train(i, :)', U_train(i));
         res = 1;
-        if new_x(1) < -2 || new_x(1) > 0.5 || new_x(2) < -1 || new_x(2) > 2
-            res = -1;
+        if new_x(1) < -2 || new_x(1) > 0.5 || new_x(2) < -1 || new_x(2) > 2 || U_train(i) < -1 || U_train(i) > 1
+            if X_train(i,1) >-0.3 && X_train(i,1) < 0.3 && X_train(i,2) < 0.8 && X_train(i,2) > -0.3
+                res = 1;
+            else
+                res = -1;
+            end
         end
         labels = [labels; res]; 
     end
