@@ -74,36 +74,45 @@ ub=[repmat([0.5 2], 1, N+1), 0.99*1*ones(1,m*N)];
 %draw_trained_data_plot(X_train, U_train, delta);
 %draw_trained_data_plot(X_train_zero, U_train_zero, delta);
 
-% create network 
-%net = train_nn_regulator(X_train, U_train,n, true, 'net_example_6.mat');
-
 mpciterations = 200;
-% Set variables for output
 
 x_OL = x_init;
+
 %simulate_mpc_simple(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations);
 
-while abs(x_OL(1)) > 0.001 || abs(x_OL(2)) > 0.001
-    x_OL = x_init;
-    net = train_nn_regulator(X_train, U_train,n, true,'net_approx_0_1.mat');
-    
-    x_OL = simulate_mpc(mpciterations, net, x_OL, tmeasure, xmeasure, delta, false);
-    
-end
+%while abs(x_OL(1)) > 0.005 || abs(x_OL(2)) > 0.005
+%    x_OL = x_init;
+%    net = train_nn_regulator(X_train, U_train,n, 25, true,'net_0_1_new.mat');
+%    
+%    x_OL = simulate_mpc(mpciterations, net, x_OL, tmeasure, xmeasure, delta, false);
+%end
+
+net = train_nn_regulator(X_train, U_train,n, 25, true,'net_0_1_new.mat');
+%simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
+draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations, net);
+%sizes_to_check = [5; 8; 10; 15; 20; 30; 40; 50]
+%for i=1:size(sizes_to_check)
+%    sizes_to_check(i)
+%    net = train_nn_regulator(X_train, U_train,n, sizes_to_check(i), false,'');
+%    calculate_mean_error(X_train,U_train, net)
+%end
+
 
 %x_OL = simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
+svm_cl_upper = get_svm_classifier(X_train, U_train, delta, 2,-0.99);
+svm_cl_lower = get_svm_classifier(X_train, U_train, delta, 2,0.99);
+svm_cl_feas = get_svm_classifier(X_train, U_train, delta, 1,0);
 
-svm_cl = get_svm_classifier(X_train, U_train, delta, 2,-0.99);
-
-[predicted_labels, scores] = predict(svm_cl, X_train);
+[predicted_labels, scores] = predict(svm_cl_feas, X_train);
 
 [new_X_train, new_U_train] = filter_feasible_points(X_train, U_train, predicted_labels);
+calculate_mean_error(new_X_train,new_U_train,net)
 draw_trained_data_plot(new_X_train, new_U_train, delta)
 net_feas = [];
 x_OL = x_init;
 while abs(x_OL(1)) > 0.001 || abs(x_OL(2)) > 0.001
     x_OL = x_init;
-    net_feas = train_nn_regulator(new_X_train, new_U_train,n, false, 'net_feas_model_with_zero.mat');
+    net_feas = train_nn_regulator(new_X_train, new_U_train,n,25, false, 'net_feas_model_with_zero.mat');
     
     x_OL = simulate_mpc(mpciterations, net_feas, x_OL, tmeasure, xmeasure, delta, false);
     
@@ -112,11 +121,21 @@ x_OL = simulate_mpc(mpciterations, net_feas, x_init, tmeasure, xmeasure, delta, 
 
 end
 
+function [mean_error] = calculate_mean_error(X_train, U_train, net)
+    mean_error = 0;
+    for i = 1:size(U_train,2)
+            u_law = net(X_train(i,:)');
+            mean_error = mean_error + (u_law - U_train(i))*(u_law - U_train(i));
+    end
+
+    mean_error = mean_error / size(U_train,2);
+end
+
 function [] = simulate_mpc_simple(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations)
     t = [];
     x = [];
     u = [];
-    figure;
+    %figure;
     x_OL = x_init
     
     for ii = 1:mpciterations % maximal number of iterations
@@ -184,7 +203,7 @@ function [x_OL] = simulate_mpc(mpciterations, net, x_OL, tmeasure, ~, delta, dra
 
              %plot predicted and closed-loop state trajetories
 
-             plot(x(1,:),x(2,:),'r'), grid on, hold on,
+             plot(x(1,:),x(2,:),'b'), grid on, hold on,
              %plot(x_OL(1:n:n*(N+1)),x_OL(n:n:n*(N+1)),'g') plot(x(1,:),x(2,:),'ob')
              xlabel('x(1)')
              ylabel('x(2)')
@@ -199,10 +218,51 @@ function [x_OL] = simulate_mpc(mpciterations, net, x_OL, tmeasure, ~, delta, dra
     end
 end
 
+function [] = draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations, net)
+    t = [];
+    x = [];
+    x_net = [];
+    u = [];
+    %figure;
+    x_OL = x_init;
+    x_OL_net = x_init;
+    
+    for ii = 1:mpciterations % maximal number of iterations
+        
+        t_Start = tic;
+        u_OL=get_control_law(x_OL, A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub);
+        u_OL_net = net(x_OL_net);
+        t_Elapsed = toc( t_Start );
+        %%    
+
+        % Store closed loop data
+        t = [ t, tmeasure ];
+        x = [ x, x_OL ];
+        x_net = [x_net, x_OL_net];
+        u = [ u, u_OL];
+
+        % Update closed-loop system (apply first control move to system)
+        x_OL = dynamic(delta, x_OL, u_OL);
+        x_OL_net = dynamic(delta, x_OL_net, u_OL_net);
+        tmeasure = tmeasure + delta;
+
+    end
+    figure;
+    plot(x(1,:),x(2,:),'r')
+    grid on
+    hold on
+    plot(x_net(1,:),x_net(2,:),'b')
+    grid on
+    hold on
+    xlabel('x(1)')
+    ylabel('x(2)')
+    legend({'Траектория(стандартный MPC)','Траектория(нейросетевой регулятор)'});
+    hold off
+end
+
 function [new_X_train, new_U_train] = filter_feasible_points(X_train, U_train, predicted_labels)
     new_X_train = [];
     new_U_train = [];
-    size(U_train)
     for i= 1:size(U_train,2)
         if predicted_labels(i) == 1
             new_X_train = [new_X_train;X_train(i,:)];
@@ -232,8 +292,6 @@ function [svm_cl] = get_svm_classifier(X_train, U_train, delta, mode, u_eq)
             for i= 1:size(U_train,2)
                 res = -1;
                 if (u_eq < 0 && U_train(i) <= u_eq + 0.0001 || u_eq > 0 && U_train(i) >= u_eq -0.0001) && labels(i) == 1
-                    i
-                    U_train(i)
                     res = 1;
                 end
                 new_labels = [new_labels; res]; 
@@ -335,7 +393,7 @@ function [X_train, U_train] = get_train_data_near_zero(A, B, Q, R, P, K, N, x_eq
     end
 end
 
-function net = train_nn_regulator(X_train, U_train, n, use_saved_data, filename)
+function net = train_nn_regulator(X_train, U_train, n, neurons_count, use_saved_data, filename)
      if use_saved_data
         load(filename) %net_example_6
         if exist('net_feas','var')
@@ -348,7 +406,7 @@ function net = train_nn_regulator(X_train, U_train, n, use_saved_data, filename)
           net.numinputs = n;
           net.trainFcn = 'trainlm';
           net.layers{1}.transferFcn = 'logsig';
-          net.layers{1}.size = 22;
+          net.layers{1}.size = neurons_count;
           net.inputConnect = [1 1 ; 0 0 ];
           net = configure(net,x);
           net = train(net,x,U_train)
