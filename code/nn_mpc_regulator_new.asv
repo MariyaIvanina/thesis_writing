@@ -110,8 +110,8 @@ net = train_nn_regulator(X_train, U_train,n, 25, true,'net_0_1_new.mat');
 
 %x_OL = simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
 svm_cl_upper = get_svm_classifier(X_train(1:2000,:), U_train(1:2000), delta, 2,-0.99, {'Точки c управлением u(t) > -1','Точки c управлением u(t) = -1','Опорные вектора'});
-svm_cl_lower = get_svm_classifier(X_train(1:2000,:), U_train(1:2000), delta, 2,0.99, {'Точки c управлением u(t) < 1','Точки c управлением u(t) = 1','Опорные вектора'});
-svm_cl_feas = get_svm_classifier(X_train(1:2000,:), U_train(1:2000), delta, 1,0, {'Точки вне области притяжения','Точки внутри области притяжения','Опорные вектора'});
+svm_cl_lower = get_svm_classifier(X_train, U_train(1:2000), delta, 2,0.99, {'Точки c управлением u(t) < 1','Точки c управлением u(t) = 1','Опорные вектора'});
+svm_cl_feas = get_svm_classifier(X_train, U_train, delta, 1,0, {'Точки вне области притяжения','Точки внутри области притяжения','Опорные вектора'});
 
 [predicted_labels, scores] = predict(svm_cl_feas, X_train);
 
