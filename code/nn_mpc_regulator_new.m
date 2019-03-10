@@ -89,7 +89,7 @@ x_OL = x_init;
 
 net = train_nn_regulator(X_train, U_train,n, 25, true,'net_0_1_new.mat');
 %simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
-draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations, net);
+%draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations, net);
 %sizes_to_check = [5; 8; 10; 15; 20; 30; 40; 50]
 %for i=1:size(sizes_to_check)
 %    sizes_to_check(i)
@@ -107,7 +107,18 @@ svm_cl_feas = get_svm_classifier(X_train, U_train, delta, 1,0);
 
 [new_X_train, new_U_train] = filter_feasible_points(X_train, U_train, predicted_labels);
 calculate_mean_error(new_X_train,new_U_train,net)
-draw_trained_data_plot(new_X_train, new_U_train, delta)
+%draw_trained_data_plot(new_X_train, new_U_train, delta)
+
+X = generate_random_points(400, -0.2,0.2,-0.2,0.2);
+[predicted_labels_random, scores] = predict(svm_cl_feas, X);
+new_X_train_zero = [];
+for i= 1:size(X,1)
+    if predicted_labels_random(i) == 1
+        new_X_train_zero = [new_X_train_zero;X(i,:)];
+    end
+end
+U_law_zero = get_u_control(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub,new_X_train_zero)
+
 net_feas = [];
 x_OL = x_init;
 while abs(x_OL(1)) > 0.001 || abs(x_OL(2)) > 0.001
@@ -129,6 +140,16 @@ function [mean_error] = calculate_mean_error(X_train, U_train, net)
     end
 
     mean_error = mean_error / size(U_train,2);
+end
+
+function [X] = generate_random_points(n, x1_l, x1_u,x2_l, x2_u)
+    X = [];
+    for i = 1:n
+        point = rand([1,2]);
+        point(1,1) = x1_l + (x1_u-x1_l)*point(1,1);
+        point(1,2) = x2_l + (x2_u-x2_l)*point(1,2);
+        X = [X; point];
+    end
 end
 
 function [] = simulate_mpc_simple(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations)
@@ -347,6 +368,18 @@ function [] = draw_3d_plot(X_train,U_train)
     xlabel('x(1)')
     ylabel('x(2)')
     zlabel('u')
+end
+
+function [U_train] = get_u_control(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, X)
+    U_train = [];
+    use_saved_data = false;
+    if use_saved_data
+        %
+    else
+        for i=1:size(X,1)
+            U_train = [U_train get_control_law(X(i,:), A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub)];
+        end
+    end
 end
 
 function [X_train, U_train] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, step)
