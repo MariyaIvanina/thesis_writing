@@ -368,7 +368,11 @@ V_n(x_n) = \min_{c, \theta} \phi_n(\theta, \tilde{x_n}, ..., \tilde{x_{n+N}}, \t
 \end{bmatrix}\Omega \oplus (W \times \{0\}) \subseteq \Omega
 \end{equation*}
 
-Так как $\bar{x_s} = \Lambda \theta$ и $\bar{u_s} = \Psi \theta$, где $\theta \in \mathbb{R}^m$ и $\Lambda \in \mathbb{R}^{n \times m}, \ \Psi \in \mathbb{R}^{m \times m}$ - точки устойчивого состояния, то их можно достичь для системы если $A+BK$ устойчива по Шуру при управлении $\bar{u_n} = K(\bar{x_n} - \bar{x_s}) + \bar{u_s} = K\bar{x_n} + (\Psi - K\Lambda)\theta$.Множества $R_0 = \{0\}$ и $R_i = \oplus_{j=0}^{i-1}(A+BK)^jW$ необходимы для робастного MPC, сужающиеся ограничения. 
+Так как $\bar{x_s} = \Lambda \theta$ и $\bar{u_s} = \Psi \theta$, где $\theta \in \mathbb{R}^m$ и $\Lambda \in \mathbb{R}^{n \times m}, \ \Psi \in \mathbb{R}^{m \times m}$ - точки устойчивого состояния, то их можно достичь для системы если $A+BK$ устойчива по Шуру при управлении 
+\begin{equation*}
+\bar{u_n} = K(\bar{x_n} - \bar{x_s}) + \bar{u_s} = K\bar{x_n} + (\Psi - K\Lambda)\theta.
+\end{equation*}
+Множества $R_0 = \{0\}$ и $R_i = \oplus_{j=0}^{i-1}(A+BK)^jW$ необходимы для робастного MPC, сужающиеся ограничения. 
 
 Устойчивость данного метода основана на робастном MPC.Были получены хорошие результаты относительно предсказанных траекторий и быстрой сходимости к точке устойчивого состояния, однако по производительности уступало нелинейному MPC с нейросетевыми регуляторами.
 
