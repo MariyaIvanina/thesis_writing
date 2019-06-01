@@ -91,21 +91,21 @@ ub=[repmat([inf, inf, pi/6, inf], 1, N+1), 200*ones(1,m*N)];
 %draw_trained_data_plot(X_train, U_train, delta)
 %[X_train, U_train] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.1);
 %[X_train_half, U_train_half] = get_train_data(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, 0.05);
-p = haltonset(4,'Skip',1e3,'Leap',1e2)
-p = scramble(p,'RR2')
-X0 = p(1:2500,:);
-X_train = [];
-for i=1:size(X0,1)
-    X_train = [X_train; [-2 + 4*X0(i,1), -2+4*X0(i,2), -1.04+2.08*X0(i,3),-1.04+2.08*X0(i,4)]];
-end
-U_train = ones(size(X0,1));
-for i=1:size(X0,1)
-    if abs(X_train(i,1)) > 1.8 || abs(X_train(i,2)) > 1.9 || abs(X_train(i,3)) > 1.7 
-        U_train(i) = 250;
-    end
-end
+%p = haltonset(4,'Skip',1e3,'Leap',1e2)
+%p = scramble(p,'RR2')
+%X0 = p(1:2500,:);
+%X_train = [];
+%for i=1:size(X0,1)
+%    X_train = [X_train; [-2 + 4*X0(i,1), -2+4*X0(i,2), -1.04+2.08*X0(i,3),-1.04+2.08*X0(i,4)]];
+%end
+%U_train = ones(size(X0,1));
+%for i=1:size(X0,1)
+%    if abs(X_train(i,1)) > 1.8 || abs(X_train(i,2)) > 1.9 || abs(X_train(i,3)) > 1.7 
+%        U_train(i) = 250;
+%    end
+%end
 %U_train = get_u_control(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub,X_train)
-%load halton_set_x
+load train_big_data_small
 
 %[X_train_zero, U_train_zero] = get_train_data_near_zero(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub);
 %draw_3d_plot(X_train,U_train);
@@ -129,7 +129,7 @@ end
 %    x_OL = simulate_mpc(mpciterations, net, x_OL, tmeasure, xmeasure, delta, false);
 %end
 
-%net = train_nn_regulator(X_train, U_train,n, 25, true,'net_big_data_small.mat');
+net = train_nn_regulator(X_train, U_train,n, 25, false,'net_big_data_small.mat');
 %simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
 %draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations, net);
 %sizes_to_check = [5; 8; 10; 15; 20; 30; 40; 50]
