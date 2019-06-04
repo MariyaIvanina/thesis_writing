@@ -116,7 +116,7 @@ load train_big_data_small
 %draw_trained_data_plot(X_train, U_train, delta);
 %draw_trained_data_plot(X_train_zero, U_train_zero, delta);
 
-%mpciterations = 100;
+mpciterations = 200;
 
 %x_OL = x_init;
 
@@ -129,9 +129,9 @@ load train_big_data_small
 %    x_OL = simulate_mpc(mpciterations, net, x_OL, tmeasure, xmeasure, delta, false);
 %end
 
-net = train_nn_regulator(X_train, U_train,n, 25, false,'net_big_data_small.mat');
+net = train_nn_regulator(X_train, U_train,n, 25, true,'net_big_data_small.mat');
 %simulate_mpc(mpciterations, net, x_init, tmeasure, xmeasure, delta, true);
-%draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations, net);
+draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n,m,tmeasure, lb, ub, x_init, mpciterations, net);
 %sizes_to_check = [5; 8; 10; 15; 20; 30; 40; 50]
 %for i=1:size(sizes_to_check)
 %    sizes_to_check(i)
@@ -288,6 +288,7 @@ function [] = draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n
     x = [];
     x_net = [];
     u = [];
+    u_net = [];
     %figure;
     x_OL = x_init;
     x_OL_net = x_init;
@@ -305,6 +306,7 @@ function [] = draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n
         x = [ x, x_OL ];
         x_net = [x_net, x_OL_net];
         u = [ u, u_OL];
+        u_net = [u_net, u_OL_net];
 
         % Update closed-loop system (apply first control move to system)
         x_OL = dynamic(delta, x_OL, u_OL);
@@ -312,16 +314,52 @@ function [] = draw_trajectories(A, B, Q, R, P, K, N, x_eq, u_eq, delta, alpha, n
         tmeasure = tmeasure + delta;
 
     end
-    figure;
-    plot(x(1,:),x(2,:),'r')
+        figure;
+    plot(x(1,:),x(3,:),'r')
     grid on
     hold on
-    plot(x_net(1,:),x_net(2,:),'b')
+    plot(x_net(1,:),x_net(3,:),'b')
     grid on
     hold on
     xlabel('x(1)')
-    ylabel('x(2)')
+    ylabel('x(3)')
     legend({'Траектория(стандартный MPC)','Траектория(нейросетевой регулятор)'});
+    hold off
+    
+    figure;
+    plot(t,x(1,:),'r')
+    grid on
+    hold on
+    plot(t,x_net(1,:),'b')
+    grid on
+    hold on
+    xlabel('t')
+    ylabel('x(1)')
+    legend({'Траектория(стандартный MPC)','Траектория(нейросетевой регулятор)'});
+    hold off
+    
+    figure;
+    plot(t,x(3,:),'r')
+    grid on
+    hold on
+    plot(t,x_net(3,:),'b')
+    grid on
+    hold on
+    xlabel('t')
+    ylabel('x(3)')
+    legend({'Траектория(стандартный MPC)','Траектория(нейросетевой регулятор)'});
+    hold off
+    
+    figure;
+    plot(t,u,'r')
+    grid on
+    hold on
+    plot(t,u_net,'b')
+    grid on
+    hold on
+    xlabel('t')
+    ylabel('u')
+    legend({'Управление(стандартный MPC)','Управление(нейросетевой регулятор)'});
     hold off
 end
 
